@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "elbIPAddressName": {
+      "type": "string"
+    },
+    "elbDnsName" : {
+      "type" : "string"
+    },
+    "publicIPAddressType": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "location": "[resourceGroup().location]",
+    "rgname": "[resourceGroup().id]"
+  },
+  "resources": [
+    {
+      "apiVersion": "2018-06-01",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[parameters('elbIPAddressName')]",
+      "location": "[variables('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "[parameters('publicIPAddressType')]",
+        "dnsSettings": {
+          "domainNameLabel": "[parameters('elbDnsName')]"
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "publicIpId": {
+      "value": "[resourceId(concat('Microsoft.Network','/','publicIPAddresses'),parameters('elbIPAddressName'))]",
+      "type": "string"
+    },
+    "fqdn": {
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses',parameters('elbIPAddressName')),providers('Microsoft.Network', 'publicIPAddresses').apiVersions[0]).dnsSettings.fqdn]",
+      "type": "string"
+    }
+  }
+}

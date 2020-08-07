@@ -1,0 +1,100 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+
+    "parameters": {
+        "networkSecurityGroupName": {
+            "type": "string",
+            "defaultValue": "nsg-default1"
+        },
+        "deployIntoExistingVnet": {
+             "type": "string",
+             "defaultValue": "No",
+             "allowedValues": [
+                    "Yes",
+                    "No"
+             ],
+             "metadata": {
+                 "description": "If yes, then the template will deploy just the VM-Series firewall and not the app-gw."
+             }
+        },
+        "virtualNetworkName": {
+            "type": "string",
+            "defaultValue": "inbound-fw-vnet",
+            "metadata": {
+                "description": "Virtual Network Name of the VM-Series firewall VM Scale Set."
+            }
+        },
+        "virtualNetworkAddressPrefix": {
+            "type": "string",
+            "defaultValue": "192.168.0.0/21",
+            "metadata": {
+                "description": "CIDR for Virtual Network."
+            }
+        },
+        "gitRepoUrl": {
+            "type": "string",
+            "metadata": {
+                "description": "URL for github repo for nested template."
+            }
+        }
+    },
+    "variables": {
+        "location" : "[resourceGroup().location]",
+        "namingInfix": "[substring(uniqueString(resourceGroup().id), 0, 5)]",
+        "rgname" : "[resourceGroup().name]",
+        "nsgURL" : "[concat(parameters('gitRepoUrl'),'/nsg-new.json')]",
+        "vnetURL" : "[concat(parameters('gitRepoUrl'),'/deployVnet.json')]"
+    },
+    "resources": [
+        {
+            "name": "SetupNSG",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "properties": { 
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('nsgURL')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "location": {
+                        "value": "[variables('location')]"
+                    },
+                    "nsgName": {
+                        "value": "[parameters('networkSecurityGroupName')]"
+                    },
+                    "virtualNetworkAddressPrefix": {
+                        "value": "[parameters('virtualNetworkAddressPrefix')]"
+                    }
+                }
+            }
+        },
+        {
+            "condition": "[equals(parameters('deployIntoExistingVnet'), 'No')]",
+            "name": "SetupVNET",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/SetupNSG"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('vnetURL')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "virtualNetworkName": {
+                        "value": "[parameters('virtualNetworkName')]"
+                    },
+                    "virtualNetworkAddressPrefix": {
+                        "value": "[parameters('virtualNetworkAddressPrefix')]"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": {
+    }
+}
