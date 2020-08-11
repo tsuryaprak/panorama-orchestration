@@ -23,7 +23,7 @@ This template is launched from Panorama using Azure Orchestration Plugin which m
         "Microsoft.Compute/virtualMachines/read",  
         "Microsoft.Network/networkInterfaces/read",  
         "Microsoft.Network/publicIPPrefixes/*"  
-    ],
+    ],  
     "NotActions": [
     ],  
     "AssignableScopes": [
