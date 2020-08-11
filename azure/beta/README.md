@@ -25,7 +25,7 @@ This template is launched from Panorama using Azure Orchestration Plugin which m
         "Microsoft.Network/publicIPPrefixes/*"  
     ],
     "NotActions": [
-    ],
+    ],  
     "AssignableScopes": [
         "/subscriptions/<subscription-uuid>"
     ]
