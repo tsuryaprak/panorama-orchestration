@@ -27,6 +27,6 @@ This template is launched from Panorama using Azure Orchestration Plugin which m
     "NotActions": [  
     ],  
     "AssignableScopes": [  
-        "/subscriptions/<subscription-uuid>"  
+        "/subscriptions/subscription-uuid"  
     ]
 }
