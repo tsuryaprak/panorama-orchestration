@@ -265,6 +265,7 @@
     },
     "resources": [
         {
+            "condition": "[equals(parameters('deployIntoExistingVnet'), 'No')]",
             "name": "SetupNatGw",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2019-11-01",
