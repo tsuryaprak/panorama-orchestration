@@ -1,0 +1,192 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "loadBalancerSku": {
+            "type": "string",
+            "allowedValues": [
+                "Standard",
+                "Basic"
+            ],
+            "metadata": {
+                "description": "Standard or Basic"
+            },
+            "defaultValue": "Standard"
+        },
+        "virtualNetworkName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the Virtual Network (VNET)"
+            }
+        },
+        "deployIntoExistingVnet": {
+            "type": "string",
+            "defaultValue": "No",
+            "allowedValues": [
+                    "Yes",
+                    "No"
+            ],
+            "metadata": {
+                "description": "If yes, then the template will deploy just the VM-Series firewall and subnets."
+            }
+        },
+        "subnetName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the subnet"
+            }
+        },
+        "subnetID": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the subnet"
+            }
+        },
+        "loadBalancerName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the inbound load balancer"
+            }
+        },
+        "loadBalancerDataIP": {
+            "type": "string",
+            "metadata": {
+                "description": "IP Address of the inbound load balancer in the Trust network"
+            }
+        },
+        "loadBalancerMgmtIP": {
+            "type": "string",
+            "metadata": {
+                "description": "IP Address of the inbound load balancer in the Trust network"
+            }
+        }
+    },
+
+    "variables": {
+        "vnetId": "[resourceId('Microsoft.Network/virtualNetworks',parameters('virtualNetworkName'))]",
+        "location": "[resourceGroup().location]",
+        "tempSubnetID" : "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), parameters('subnetName'))]"
+    },
+
+    "resources": [
+        {
+            "type": "Microsoft.Network/loadBalancers",
+            "sku": {
+                "name": "Standard",
+                "tier": "Regional"
+            },
+            "tags": {
+                "PanoramaManaged": "yes"
+            },
+            "name": "[parameters('loadBalancerName')]",
+            "apiVersion": "2018-02-01",
+            "location": "[variables('location')]",
+            "properties": {
+                "frontendIPConfigurations": [
+                    {
+                        "name": "fw-data-frontend",
+                        "properties": {
+                            "privateIPAddress": "[parameters('loadBalancerDataIP')]",
+                            "privateIPAllocationMethod": "Static",
+                            "subnet": {
+                                "id" : "[if(equals(parameters('deployIntoExistingVnet'), 'No'), variables('tempSubnetID'), parameters('subnetID'))]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "fw-mgmt-frontend",
+                        "properties": {
+                            "privateIPAddress": "[parameters('loadBalancerMgmtIP')]",
+                            "privateIPAllocationMethod": "Static",
+                            "subnet": {
+                                "id" : "[if(equals(parameters('deployIntoExistingVnet'), 'No'), variables('tempSubnetID'), parameters('subnetID'))]"
+                            }
+                        }
+                    }
+                ],
+                "backendAddressPools": [
+                    {
+                        "name": "fw-data-backend-pool"
+                    },
+                    {
+                        "name": "fw-mgmt-backend-pool"
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "fw-data-health-probe",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": 80,
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    },
+                    {
+                        "name": "fw-mgmt-health-probe",
+                        "properties": {
+                            "protocol": "Https",
+                            "port": 443,
+                            "requestPath": "/php/login.php",
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        }
+                    }
+                ],
+                "loadBalancingRules": [
+                    {
+                        "name": "fw-data-lb-rule",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('loadBalancerName')), '/frontendIPConfigurations/fw-data-frontend')]"
+                            },
+                            "frontendPort": 0,
+                            "backendPort": 0,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "All",
+                            "loadDistribution": "Default",
+                            "disableOutboundSnat": false,
+                            "backendAddressPool": {
+                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('loadBalancerName')),'/backendAddressPools/fw-data-backend-pool')]"
+                            },
+                            "probe": {
+                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('loadBalancerName')),'/probes/fw-data-health-probe')]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "fw-mgmt-lb-rule",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('loadBalancerName')), '/frontendIPConfigurations/fw-mgmt-frontend')]"
+                            },
+                            "frontendPort": 0,
+                            "backendPort": 0,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 4,
+                            "protocol": "All",
+                            "loadDistribution": "Default",
+                            "disableOutboundSnat": false,
+                            "backendAddressPool": {
+                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('loadBalancerName')),'/backendAddressPools/fw-mgmt-backend-pool')]"
+                            },
+                            "probe": {
+                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('loadBalancerName')),'/probes/fw-mgmt-health-probe')]"
+                            }
+                        }
+                    }
+                ],
+                "inboundNatRules": [],
+                "outboundRules": [],
+                "inboundNatPools": []
+            }
+        }
+    ],
+    "outputs" : {
+        "LoadBalancerFrontEndIp": {
+            "value": "[reference(concat('Microsoft.Network/loadBalancers/', parameters('loadBalancerName'))).frontendIPConfigurations[0].properties.privateIPAddress ]",
+            "type" : "string"
+        }
+    }
+}
