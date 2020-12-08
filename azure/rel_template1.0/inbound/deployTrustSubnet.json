@@ -1,0 +1,41 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "virtualNetworkName": {
+            "type": "string",
+            "defaultValue": "inbound-fw-vnet",
+            "metadata": {
+                "description": "Virtual Network Name of the VM-Series firewall VM Scale Set."
+            }
+        },
+        "dataSubnetName": {
+            "type": "string",
+            "defaultValue": "Data-Subnet",
+            "metadata": {
+                "description": "Subnet for Data"
+            }
+        },
+        "dataSubnetPrefix": {
+            "type": "string",
+            "defaultValue": "None",
+            "metadata": {
+                "description": "Data subnet CIDR"
+            }
+        }
+    },
+    "variables": {
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('virtualNetworkName'), '/', parameters('dataSubnetName'))]",
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2015-06-15",
+            "properties": {
+                "addressPrefix": "[parameters('dataSubnetPrefix')]"
+            }
+        }
+    ],
+    "outputs": {
+    }
+}
