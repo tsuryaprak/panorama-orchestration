@@ -64,8 +64,8 @@
 
     },
 
-	"variables": {
-		"vnetId": "[resourceId('Microsoft.Network/virtualNetworks',parameters('virtualNetworkName'))]",
+    "variables": {
+        "vnetId": "[resourceId('Microsoft.Network/virtualNetworks',parameters('virtualNetworkName'))]",
         "location": "[resourceGroup().location]",
         "tempSubnetID" : "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), parameters('subnetName'))]"
     },
@@ -130,8 +130,8 @@
                             "protocol": "Https",
                             "port": 443,
                             "requestPath": "/php/login.php",
-                            "intervalInSeconds": 5,
-                            "numberOfProbes": 2
+                            "intervalInSeconds": 12,
+                            "numberOfProbes": 10
                         }
                     }
                 ],

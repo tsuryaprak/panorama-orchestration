@@ -75,7 +75,6 @@
         },
         "adminPassword": {
             "type": "securestring",
-            "defaultValue": "Dem0pa$$w0rd",
             "metadata": {
                 "description": "Admin password on all VMs."
             }

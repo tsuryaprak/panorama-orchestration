@@ -163,7 +163,6 @@
         },
         "password": {
             "type": "securestring",
-            "defaultValue": "Dem0pa$$w0rd",
             "metadata": {
                 "description": "The password for the administrator account. Required if Authentication Type is 'password'. Visit https://docs.microsoft.com/en-us/azure/virtual-machines/windows/faq#what-are-the-password-requirements-when-creating-a-vm for password requirements"
             }
