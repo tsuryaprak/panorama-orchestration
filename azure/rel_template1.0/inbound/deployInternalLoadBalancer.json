@@ -128,8 +128,8 @@
                             "protocol": "Https",
                             "port": 443,
                             "requestPath": "/php/login.php",
-                            "intervalInSeconds": 5,
-                            "numberOfProbes": 2
+                            "intervalInSeconds": 12,
+                            "numberOfProbes": 10
                         }
                     }
                 ],
