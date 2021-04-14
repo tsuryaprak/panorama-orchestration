@@ -1,0 +1,725 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+
+    "parameters": {
+        "fwLoadBalancerDataIP": {
+            "type": "string",
+            "metadata": {
+                "description": "IP Address of the Internal Load Balancer in front of the firewall. This should be an IP in the Untrust subnet."
+            }
+        },
+        "fwLoadBalancerMgmtIP": {
+            "type": "string",
+            "metadata": {
+                "description": "IP Address of the Internal Load Balancer in front of the firewall. This should be an IP in the Untrust subnet."
+            }
+        },
+        "virtualNetworkName": {
+            "type": "string",
+            "defaultValue": "inbound-fw-vnet",
+            "metadata": {
+                "description": "Virtual Network Name of the VM-Series firewall VM Scale Set."
+            }
+        },
+        "deployIntoExistingVnet": {
+             "type": "string",
+             "defaultValue": "No",
+             "allowedValues": [
+                    "Yes",
+                    "No"
+             ],
+             "metadata": {
+                 "description": "If yes, then the template will deploy just the VM-Series firewall and subnets."
+             }
+        },
+        "mgmtSubnetName": {
+            "type": "string",
+            "metadata": {
+                "description": "Mgmt Subnet Name of the VM-Series firewall VM Scale Set."
+            }
+        },
+        "mgmtSubnetID": {
+            "type": "string",
+            "defaultValue": "none",
+            "metadata": {
+                "description": "Mgmt Subnet Name of the VM-Series firewall VM Scale Set."
+            }
+        },
+        "mgmtSubnetPrefix": {
+            "type": "string",
+            "defaultValue": "192.168.0.0/24",
+            "metadata": {
+                "description": "CIDR for Management Subnet."
+            }
+        },
+        "untrustSubnetName": {
+            "type": "string",
+            "metadata": {
+                "description": "Untrust Subnet Name of the VM-Series firewall VM Scale Set."
+            }
+        },
+        "untrustSubnetID": {
+            "type": "string",
+            "defaultValue": "none",
+            "metadata": {
+                "description": "Untrust Subnet Name of the VM-Series firewall VM Scale Set."
+            }
+        },
+        "untrustSubnetPrefix": {
+            "type": "string",
+            "defaultValue": "192.168.1.0/24",
+            "metadata": {
+                "description": "CIDR for Untrust Data Subnet."
+            }
+        },
+        "trustSubnetName": {
+            "type": "string",
+            "metadata": {
+                "description": "Trust Subnet Name of the VM-Series firewall VM Scale Set."
+            }
+        },
+        "trustSubnetID": {
+            "type": "string",
+            "defaultValue": "none",
+            "metadata": {
+                "description": "Trust Subnet Name of the VM-Series firewall VM Scale Set."
+            }
+        },
+        "trustSubnetPrefix": {
+            "type": "string",
+            "defaultValue": "192.168.2.0/24",
+            "metadata": {
+                "description": "CIDR for Data Subnet."
+            }
+        },
+        "fwIlbName": {
+            "type": "string",
+            "metadata": {
+                "description": "FW ILB Name of the VM-Series firewall VM Scale Set."
+            }
+        },
+        "fwElbName": {
+            "type": "string",
+            "metadata": {
+                "description": "FW ELB Name of the VM-Series firewall VM Scale Set."
+            }
+        },
+        "vmssName": {
+            "type": "string",
+            "metadata": {
+                "description": "VM-Series firewall VM Scale Set Name."
+            }
+        },
+        "vmSeriesFirewallModel": {
+             "type": "string",
+             "defaultValue": "byol",
+             "allowedValues": [
+                    "byol",
+                    "bundle1",
+                    "bundle2"
+             ],
+             "metadata": {
+                 "description": "byol = Bring Your Own License; bundle1 = Bundle 1 PAYG (Hourly); bundle2 = Bundle 2 PAYG (Hourly)"
+             }
+        },
+        "vmSeriesImageVersion": {
+            "type": "string",
+            "defaultValue": "None",
+            "metadata": {
+                "description": "PAN OS Version"
+            }
+        },
+        "vmSeriesFirewallVmSize": {
+             "type": "string",
+             "allowedValues": [
+                "Standard_D3",
+                "Standard_D4",
+                "Standard_D3_v2",
+                "Standard_D4_v2",
+                "Standard_D5_v2",
+                "Standard_D3_v3",
+                "Standard_D4_v3",
+                "Standard_D16_v3",
+                "Standard_DS3_v2",
+                "Standard_DS4_v2",
+                "Standard_DS5_v2",
+                "Standard_DS3_v3",
+                "Standard_DS4_v3",
+                "Standard_DS16_v3",
+                "Standard_A4" 
+             ],
+             "metadata": {
+                "description": "Azure VM size for VM-Series firewall."
+             },
+             "defaultValue": "Standard_D3_v2"
+        },
+        "username": {
+            "type": "string",
+            "defaultValue": "pandemo",
+            "metadata": {
+                "description": "The username for the administrator account on the VM-Series firewall."
+            }
+        },
+        "password": {
+            "type": "securestring",
+            "metadata": {
+                "description": "The password for the administrator account. Required if Authentication Type is 'password'. Visit https://docs.microsoft.com/en-us/azure/virtual-machines/windows/faq#what-are-the-password-requirements-when-creating-a-vm for password requirements"
+            }
+        },
+        "bootstrapStorageAccount": {
+            "type": "string",
+            "defaultValue": "storageaccountname",
+            "metadata":{
+              "description": "The name of the storage account that contains the bootstrap file share."
+            }
+        },
+        "bootstrapStorageAccountAccessKey": {
+            "type": "securestring",
+            "defaultValue": "storageacountaccesskey",
+            "metadata":{
+              "description": "The access key for the bootstrap storage account."
+            }
+        },
+        "bootstrapFileShare": {
+            "type": "string",
+            "defaultValue": "storagefileshare",
+            "metadata":{
+                "description": "The name of the file share that contains the bootstrap folders."
+            }
+        },
+        "bootstrapSharedDir": {
+            "type": "string",
+            "defaultValue": "None",
+            "metadata":{
+                    "description": "(OPTIONAL) The directory name under file share that contains the bootstrap folders."
+            }   
+        },
+        "vmScaleSetMinCount": {
+            "type": "int",
+            "defaultValue": 2,
+            "metadata": {
+                "description": "The minimum (and default) number of VM-Series firewall(s) to deploy in the VM Scale Set."
+            }
+        },
+        "vmScaleSetMaxCount": {
+            "type": "int",
+            "defaultValue": 3,
+            "metadata": {
+                "description": "The maximum number of VM-Series firewall(s) to deploy in the VM Scale Set."
+            }
+        },
+        "appInsightsName": {
+            "type": "string",
+             "metadata": {
+                 "description": "Name of appInsights instance to be used in autoscaling."
+             }
+        },
+        "autoScaleMetric": {
+             "type": "string",
+             "allowedValues": [
+                  "Data Plane CPU Utilization %", 
+                  "GP Gateway Utilization %",
+                  "GP Gateway Active Tunnels",
+                  "Data Plane Packet Buffer Utilization %",
+                  "Active Sessions",
+                  "SSL Proxy Session Utilization %",
+                  "Session Utilization %",
+                  "Throughput Kbps"
+                ], 
+             "defaultValue": "Active Sessions", 
+             "metadata": {
+                 "description": "Select the metric on which to trigger an auto scale event."
+             } 
+        },
+        "scaleInThreshold": {
+            "type": "int",
+            "defaultValue": 2000,
+            "metadata": {
+                "description": "The threshold below which the VM-Series firewall is scaled in."
+            }
+        },
+        "scaleOutThreshold": {
+            "type": "int",
+            "defaultValue": 32000,
+            "metadata": {
+                "description": "The threshold above which the VM-Series firewall is scaled out."
+            }
+        },
+        "randomString": {
+            "type": "string",
+            "metadata": {
+                "description": "random string for resource naming."
+            }
+        },
+        "gitRepoUrl": {
+            "type": "string",
+            "metadata": {
+                "description": "URL for github repo for nested template."
+            }
+        },
+        "natGatewayName": {
+            "type": "string",
+            "metadata": {
+                "description": "NAT Gateway name for the mgmt and data interfaces."
+            }
+        },
+        "customDataString": {
+            "type": "string",
+            "defaultValue": "None",
+            "metadata": {
+                "description": "List of attributes to pass to the VM for bootstrapping."
+            }
+        },
+        "zoneList": {
+            "type": "array",
+            "metadata": {
+                "description": "List of zones in region to deploys FWs."
+            }
+        },
+        "nsgName": {
+            "type": "string",
+            "metadata": {
+                "description": "NSG name for untrust subnet."
+            }
+        },
+        "publicIpName": {
+            "type": "string",
+            "metadata": {
+                "description": "ELB public IP name."
+            }
+        },
+        "elbDefaultFrontendName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name for default frontent on ELB."
+            }
+        },
+        "customImageId": {
+            "type": "string",
+            "defaultValue": "None",
+            "metadata": {
+                "description": "string for custom image."
+            }
+        },
+        "maxUnhealthyInstancePercent": {
+            "type": "int",
+            "defaultValue": 100,
+            "metadata": {
+                "description": "percentage of max unhealthy instance."
+            }
+        },
+        "maxUnhealthyUpgradedInstancePercent": {
+            "type": "int",
+            "defaultValue": 100,
+            "metadata": {
+                "description": "percentage of max unhealthy upgraded instance."
+            }
+        }
+    },
+    "variables": {
+        "location" : "[resourceGroup().location]",
+        "rgname" : "[resourceGroup().name]",
+        "mgmtSubnetURL" : "[concat(parameters('gitRepoUrl'),'/deployMgmtSubnet.json')]",
+        "untrustSubnetURL" : "[concat(parameters('gitRepoUrl'),'/deployUntrustSubnet.json')]",
+        "trustSubnetURL" : "[concat(parameters('gitRepoUrl'),'/deployTrustSubnet.json')]",
+        "pubIpURL" : "[concat(parameters('gitRepoUrl'),'/deployPublicIP.json')]",
+        "elbIpURL" : "[concat(parameters('gitRepoUrl'),'/deployExternalLoadBalancer.json')]",
+        "vmseriesURL" : "[concat(parameters('gitRepoUrl'),'/vmseries.json')]",
+        "vmseriesPrivateImageURL" : "[concat(parameters('gitRepoUrl'),'/vmseriesPrivateImage.json')]",
+        "ilbURL" : "[concat(parameters('gitRepoUrl'),'/deployInternalLoadBalancer.json')]",
+        "nsgURL" : "[concat(parameters('gitRepoUrl'),'/nsg-new.json')]",
+        "customDataField": "[if(equals(parameters('customDataString'), 'None'), concat('storage-account=', parameters('bootstrapStorageAccount'), ',access-key=', parameters('bootstrapStorageAccountAccessKey'), ',file-share=', parameters('bootstrapFileShare'),',share-directory=', parameters('bootstrapSharedDir')), parameters('customDataString'))]"
+    },
+    "resources": [
+        {
+            "condition": "[equals(parameters('deployIntoExistingVnet'), 'No')]",
+            "name": "InboundSetupNSG",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2016-06-01",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('nsgURL')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "location": {
+                        "value": "[variables('location')]"
+                    },
+                    "nsgName": {
+                         "value": "[parameters('nsgName')]"
+                    }
+                }
+            }
+        },
+        {
+            "condition": "[equals(parameters('deployIntoExistingVnet'), 'No')]",
+            "name": "InboundSetupMgmtSubnet",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2019-11-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/InboundSetupNSG"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('mgmtSubnetURL')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "virtualNetworkName": {
+                        "value": "[parameters('virtualNetworkName')]"
+                    },
+                    "mgmtSubnetName": {
+                         "value": "[parameters('mgmtSubnetName')]"
+                    },
+                    "mgmtSubnetPrefix": {
+                         "value": "[parameters('mgmtSubnetPrefix')]"
+                    },
+                    "natGatewayName": {
+                        "value": "[parameters('natGatewayName')]"
+                    }
+                }
+            }
+        },
+        {
+            "condition": "[equals(parameters('deployIntoExistingVnet'), 'No')]",
+            "name": "InboundSetupDataUntrustSubnet",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/InboundSetupMgmtSubnet"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('untrustSubnetURL')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "virtualNetworkName": {
+                        "value": "[parameters('virtualNetworkName')]"
+                    },
+                    "dataSubnetName": {
+                         "value": "[parameters('untrustSubnetName')]"
+                    },
+                    "dataSubnetPrefix": {
+                         "value": "[parameters('untrustSubnetPrefix')]"
+                    },
+                    "nsgName": {
+                         "value": "[parameters('nsgName')]"
+                    }
+                }
+            }
+        },
+        {
+            "condition": "[equals(parameters('deployIntoExistingVnet'), 'No')]",
+            "name": "InboundSetupDataTrustSubnet",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/InboundSetupDataUntrustSubnet"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('trustSubnetURL')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "virtualNetworkName": {
+                        "value": "[parameters('virtualNetworkName')]"
+                    },
+                    "dataSubnetName": {
+                         "value": "[parameters('trustSubnetName')]"
+                    },
+                    "dataSubnetPrefix": {
+                         "value": "[parameters('trustSubnetPrefix')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "InboundSetupIP",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/InboundSetupDataTrustSubnet"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('pubIpURL')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "ipName": {
+                        "value": "[parameters('publicIpName')]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "InboundSetupELB",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/InboundSetupIP"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('elbIpURL')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "loadBalancerName": {
+                        "value": "[parameters('fwElbName')]"
+                    },
+                    "ipName": {
+                        "value": "[parameters('publicIpName')]"
+                    },
+                    "frontendName": {
+                        "value": "[parameters('elbDefaultFrontendName')]"
+                    }
+                }
+                
+            }
+        },
+        {
+            "name": "InboundSetupILB",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/InboundSetupDataTrustSubnet"
+            ],
+            "properties": { 
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('ilbURL')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "virtualNetworkName": {
+                        "value": "[parameters('virtualNetworkName')]"
+                    },
+                    "deployIntoExistingVnet": {
+                        "value": "[parameters('deployIntoExistingVnet')]"
+                    },
+                    "subnetName": {
+                        "value": "[parameters('untrustSubnetName')]"
+                    },
+                    "subnetID": {
+                        "value": "[parameters('untrustSubnetID')]"
+                    },
+                    "loadBalancerName": {
+                        "value": "[parameters('fwIlbName')]"
+                    },
+                    "loadBalancerDataIP": {
+                        "value": "[parameters('fwLoadBalancerDataIP')]"
+                    },
+                    "loadBalancerMgmtIP": {
+                        "value": "[parameters('fwLoadBalancerMgmtIP')]"
+                    }
+                }
+            }
+        },
+        {
+            "condition": "[not(equals(parameters('customImageId'), 'None'))]",
+            "name": "InboundSetupVMSeriesPrivateImage",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/InboundSetupILB",
+                "Microsoft.Resources/deployments/InboundSetupELB"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('vmseriesPrivateImageURL')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "vmssName": {
+                        "value": "[parameters('vmssName')]"
+                    },
+                    "vmSize": {
+                         "value": "[parameters('vmSeriesFirewallVmSize')]"
+                    },
+                    "vmScaleSetMinCount": {
+                        "value": "[parameters('vmScaleSetMinCount')]"
+                    },
+                    "vmScaleSetMaxCount": {
+                        "value": "[parameters('vmScaleSetMaxCount')]"
+                    },
+                    "vmSku": {
+                        "value": "[parameters('vmSeriesFirewallModel')]"
+                    },
+                    "adminUsername": {
+                         "value": "[parameters('username')]"
+                    },
+                    "adminPassword": {
+                         "value": "[parameters('password')]"
+                    },
+                    "customDataField": {
+                        "value": "[variables('customDataField')]"
+                    },
+                    "virtualNetworkName": {
+                         "value": "[parameters('virtualNetworkName')]"
+                    },
+                    "deployIntoExistingVnet": {
+                        "value": "[parameters('deployIntoExistingVnet')]"
+                    },
+                    "subnetNameMgmt": {
+                        "value": "[parameters('mgmtSubnetName')]"
+                    },
+                    "subnetIDMgmt": {
+                        "value": "[parameters('mgmtSubnetID')]"
+                    },
+                    "subnetNameDataUntrust": {
+                        "value": "[parameters('untrustSubnetName')]"
+                    },
+                    "subnetIDDataUntrust": {
+                        "value": "[parameters('untrustSubnetID')]"
+                    },
+                    "subnetNameDataTrust": {
+                        "value": "[parameters('trustSubnetName')]"
+                    },
+                    "subnetIDDataTrust": {
+                        "value": "[parameters('trustSubnetID')]"
+                    },
+                    "fwIlbName": {
+                        "value": "[parameters('fwIlbName')]"
+                    },
+                    "appInsightsName": {
+                        "value": "[parameters('appInsightsName')]"
+                    },
+                    "autoScaleMetric": {
+                        "value": "[parameters('autoScaleMetric')]"
+                    },
+                    "scaleInThreshold": {
+                        "value": "[parameters('scaleInThreshold')]"
+                    },
+                    "scaleOutThreshold": {
+                        "value": "[parameters('scaleOutThreshold')]"
+                    },
+                    "randomString" : {
+                        "value" : "[parameters('randomString')]"
+                    },
+                    "zoneList" : {
+                        "value" : "[parameters('zoneList')]"
+                    },
+                    "fwElbName" : {
+                        "value" : "[parameters('fwElbName')]"
+                    },
+                    "customImageId" : {
+                        "value" : "[parameters('customImageId')]"
+                    }
+                }
+            }
+        },
+        {
+            "condition": "[equals(parameters('customImageId'), 'None')]",
+            "name": "InboundSetupVMSeries",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2015-01-01",
+            "dependsOn": [
+                "Microsoft.Resources/deployments/InboundSetupILB",
+                "Microsoft.Resources/deployments/InboundSetupELB"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[variables('vmseriesURL')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "vmssName": {
+                        "value": "[parameters('vmssName')]"
+                    },
+                    "vmSize": {
+                         "value": "[parameters('vmSeriesFirewallVmSize')]"
+                    },
+                    "vmScaleSetMinCount": {
+                        "value": "[parameters('vmScaleSetMinCount')]"
+                    },
+                    "vmScaleSetMaxCount": {
+                        "value": "[parameters('vmScaleSetMaxCount')]"
+                    },
+                    "vmSku": {
+                        "value": "[parameters('vmSeriesFirewallModel')]"
+                    },
+                    "imageVersion": { 
+                        "value": "[parameters('vmSeriesImageVersion')]"
+                    },
+                    "adminUsername": {
+                         "value": "[parameters('username')]"
+                    },
+                    "adminPassword": {
+                         "value": "[parameters('password')]"
+                    },
+                    "customDataField": {
+                        "value": "[variables('customDataField')]"
+                    },
+                    "virtualNetworkName": {
+                         "value": "[parameters('virtualNetworkName')]"
+                    },
+                    "deployIntoExistingVnet": {
+                        "value": "[parameters('deployIntoExistingVnet')]"
+                    },
+                    "subnetNameMgmt": {
+                        "value": "[parameters('mgmtSubnetName')]"
+                    },
+                    "subnetIDMgmt": {
+                        "value": "[parameters('mgmtSubnetID')]"
+                    },
+                    "subnetNameDataUntrust": {
+                        "value": "[parameters('untrustSubnetName')]"
+                    },
+                    "subnetIDDataUntrust": {
+                        "value": "[parameters('untrustSubnetID')]"
+                    },
+                    "subnetNameDataTrust": {
+                        "value": "[parameters('trustSubnetName')]"
+                    },
+                    "subnetIDDataTrust": {
+                        "value": "[parameters('trustSubnetID')]"
+                    },
+                    "fwIlbName": {
+                        "value": "[parameters('fwIlbName')]"
+                    },
+                    "appInsightsName": {
+                        "value": "[parameters('appInsightsName')]"
+                    },
+                    "autoScaleMetric": {
+                        "value": "[parameters('autoScaleMetric')]"
+                    },
+                    "scaleInThreshold": {
+                        "value": "[parameters('scaleInThreshold')]"
+                    },
+                    "scaleOutThreshold": {
+                        "value": "[parameters('scaleOutThreshold')]"
+                    },
+                    "randomString" : {
+                        "value" : "[parameters('randomString')]"
+                    },
+                    "zoneList" : {
+                        "value" : "[parameters('zoneList')]"
+                    },
+                    "fwElbName" : {
+                        "value" : "[parameters('fwElbName')]"
+                    },
+                    "maxUnhealthyInstancePercent" : {
+                        "value" : "[parameters('maxUnhealthyInstancePercent')]"
+                    },
+                    "maxUnhealthyUpgradedInstancePercent" : {
+                        "value" : "[parameters('maxUnhealthyUpgradedInstancePercent')]"
+                    }       
+                }
+            }
+        }
+    ],
+    "outputs": {
+    }
+}

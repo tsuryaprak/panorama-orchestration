@@ -1,0 +1,429 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "vmssName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name for your VMSS"
+            },
+            "maxLength": 57
+        },
+        "vmSize": {
+            "type": "string",
+            "allowedValues": [
+                "Standard_D3",
+                "Standard_D4",
+                "Standard_D3_v2",
+                "Standard_D4_v2",
+                "Standard_D5_v2",
+                "Standard_D3_v3",
+                "Standard_D4_v3",
+                "Standard_D16_v3",
+                "Standard_DS3_v2",
+                "Standard_DS4_v2",
+                "Standard_DS5_v2",
+                "Standard_DS3_v3",
+                "Standard_DS4_v3",
+                "Standard_DS16_v3",
+                "Standard_A4" 
+            ],
+            "metadata": {
+                "description": "Azure VM size for VM-Series"
+            },
+            "defaultValue": "Standard_D3_v2"
+        },
+        "vmScaleSetMinCount": {
+            "type": "int",
+            "defaultValue": 2, 
+            "metadata": {
+                "description": "The minimum (and default) number of FWs that will be deployed into the VM Scale Set."
+            }
+        }, 
+        "vmScaleSetMaxCount": {
+            "type": "int",
+            "defaultValue": 3, 
+            "metadata": {
+                "description": "The maximum number of FWs that can be deployed into the VM Scale Set."
+            }
+        },
+        "vmSku": {
+            "type": "string",
+            "allowedValues": [
+                "byol",
+                "bundle1",
+                "bundle2"
+            ],
+            "metadata": {
+                "description": "Firewall License Model"
+            },
+            "defaultValue": "byol"
+        },
+        "imageVersion": {
+            "type": "string",
+            "defaultValue": "None",
+            "metadata": {
+                "description": "PAN OS Version"
+            }
+        },
+        "adminUsername": {
+            "type": "string",
+            "defaultValue": "pandemo",
+            "metadata": {
+                "description": "Admin username on all VMs."
+            }
+        },
+        "adminPassword": {
+            "type": "securestring",
+            "metadata": {
+                "description": "Admin password on all VMs."
+            }
+        },
+        "customDataField": {
+            "type": "string",
+            "metadata": {
+                "description": "Credentials required by the firewall VM bootstrap code to access the storage"
+            }
+        },
+        "virtualNetworkName": {
+            "type": "string",
+            "metadata": {
+                "description": "VNET name"
+            }
+        },
+        "deployIntoExistingVnet": {
+            "type": "string",
+            "defaultValue": "No",
+            "allowedValues": [
+                    "Yes",
+                    "No"
+            ],
+            "metadata": {
+                "description": "If yes, then the template will deploy just the VM-Series firewall and subnets."
+            }
+        },
+        "subnetNameMgmt": {
+            "type": "string",
+            "metadata": {
+                "description": "Management Subnet name"
+            }
+        },
+        "subnetIDMgmt": {
+            "type": "string",
+            "metadata": {
+                "description": "Management Subnet name"
+            }
+        },
+        "subnetNameData": {
+            "type": "string",
+            "metadata": {
+                "description": "Untrust Subnet name"
+            }
+        },
+        "subnetIDData": {
+            "type": "string",
+            "metadata": {
+                "description": "Untrust Subnet name"
+            }
+        },
+        "fwIlbName": {
+            "type": "string",
+            "metadata": {
+                "description": "Application Gateway Name"
+            }
+        },
+        "appInsightsName": {
+            "type": "string",
+            "metadata": {
+                "description": "App Insights where custom metrics is hosted"
+            }
+        },
+        "autoScaleMetric": {
+             "type": "string",
+             "allowedValues": [
+                  "Data Plane CPU Utilization %", 
+                  "GP Gateway Utilization %",
+                  "GP Gateway Active Tunnels",
+                  "Data Plane Packet Buffer Utilization %",
+                  "Active Sessions",
+                  "SSL Proxy Session Utilization %",
+                  "Session Utilization %",
+                  "Throughput Kbps"
+                ], 
+             "defaultValue": "Active Sessions", 
+             "metadata": {
+                 "description": "Select the metric on which auto scale events should be triggered."
+             } 
+        },
+        "scaleInThreshold": {
+            "type": "int",
+            "defaultValue": 2000,
+            "metadata": {
+                "description": "The Threshold below which FW VM scale in kicks in."
+            }
+        },
+        "scaleOutThreshold": {
+            "type": "int",
+            "defaultValue": 32000,
+            "metadata": {
+                "description": "The Threshold above which FW VM scale out kicks in."
+            }
+        },
+        "guidValue": {
+            "type": "string",
+            "defaultValue": "[newGuid()]"
+        },
+        "randomString": {
+            "type": "string",
+            "metadata": {
+                "description": "random string for resource naming."
+            }
+        },
+        "zoneList": {
+            "type": "array",
+            "metadata": {
+                "description": "List of zones in region to deploys FWs."
+            }
+        },
+        "maxUnhealthyInstancePercent" : {
+            "type" : "int",
+            "metadata": {
+                "description": "Percentage of max unhealthy instance."
+            }            
+        },
+        "maxUnhealthyUpgradedInstancePercent" : {
+            "type" : "int",
+            "metadata": {
+                "description": "Percentage of max unhealthy upgraded instance."
+            }
+        }
+    },
+    "variables": {
+        "rgname": "[resourceGroup().id]",
+        "autoscaleName": "[concat('deployment-hub', parameters('randomString'))]",
+        "nicNameMgmt": "[concat('nicmgmt', parameters('randomString'))]",
+        "nicNameDataIntfc": "[concat('nicdata', parameters('randomString'))]",
+        "ipConfigNameData": "[concat('ipconfigdata', parameters('randomString'))]",
+        "ipConfigNamemgmt": "[concat('ipconfigmgmt', parameters('randomString'))]",
+        "imagePublisher": "paloaltonetworks",
+        "imageOffer" : "vmseries-flex",
+        "location": "[resourceGroup().location]",
+        "tempMgmtSubnetID" : "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), parameters('subnetNameMgmt'))]",
+        "tempDataSubnetID" : "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), parameters('subnetNameData'))]",
+        "resourceGroupName": "[resourceGroup().name]",
+        "scaleMetricMap": {
+            "Data Plane CPU Utilization %": {
+                "metricName": "customMetrics/DataPlaneCPUUtilizationPct", 
+                "metricResourceUri": "[resourceId(variables('resourceGroupName'), 'Microsoft.Insights/components', parameters('appInsightsName'))]"
+            }, 
+            "GP Gateway Utilization %": {
+                "metricName": "customMetrics/panGPGatewayUtilizationPct",
+                "metricResourceUri": "[resourceId(variables('resourceGroupName'), 'Microsoft.Insights/components', parameters('appInsightsName'))]"
+            }, 
+            "GP Gateway Active Tunnels": {
+                "metricName": "customMetrics/panGPGWUtilizationActiveTunnels", 
+                "metricResourceUri": "[resourceId(variables('resourceGroupName'), 'Microsoft.Insights/components', parameters('appInsightsName'))]"
+            },
+            "Active Sessions": {
+                "metricName": "customMetrics/panSessionActive",
+                "metricResourceUri": "[resourceId(variables('resourceGroupName'), 'Microsoft.Insights/components', parameters('appInsightsName'))]"
+            },
+            "Data Plane Packet Buffer Utilization %": {
+                "metricName": "customMetrics/DataPlanePacketBufferUtilization",
+                "metricResourceUri": "[resourceId(variables('resourceGroupName'), 'Microsoft.Insights/components', parameters('appInsightsName'))]"
+
+            },
+            "SSL Proxy Session Utilization %": {
+                "metricName": "customMetrics/panSessionSslProxyUtilization", 
+                "metricResourceUri": "[resourceId(variables('resourceGroupName'), 'Microsoft.Insights/components', parameters('appInsightsName'))]"
+            },
+            "Session Utilization %": {
+                "metricName": "customMetrics/panSessionUtilization", 
+                "metricResourceUri": "[resourceId(variables('resourceGroupName'), 'Microsoft.Insights/components', parameters('appInsightsName'))]"
+            },
+            "Throughput Kbps": {
+                "metricName": "customMetrics/panSessionThroughputKbps", 
+                "metricResourceUri": "[resourceId(variables('resourceGroupName'), 'Microsoft.Insights/components', parameters('appInsightsName'))]"
+            }
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Compute/virtualMachineScaleSets",
+            "name": "[parameters('vmssName')]",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2017-12-01",
+            "zones" : "[parameters('zoneList')]",
+            "tags": {
+                "PanoramaManaged": "yes"
+            },
+            "sku": {
+                "name": "[parameters('vmSize')]",
+                "tier": "Standard",
+                "capacity": "[parameters('vmScaleSetMinCount')]"
+            },
+            "plan": {
+                "name": "[parameters('vmSku')]",
+                "product": "[variables('imageOffer')]",
+                "publisher": "[variables('imagePublisher')]"
+            },
+            "properties": {
+                "overprovision": "false",
+                "singlePlacementGroup": "false",
+                "platformFaultDomainCount" : 1,
+                "upgradePolicy": {
+                    "mode": "Rolling",
+                    "rollingUpgradePolicy": {
+                        "maxBatchInstancePercent": 20,
+                        "maxUnhealthyInstancePercent": "[parameters('maxUnhealthyInstancePercent')]",
+                        "maxUnhealthyUpgradedInstancePercent": "[parameters('maxUnhealthyUpgradedInstancePercent')]",
+                        "pauseTimeBetweenBatches": "PT0S"
+                    }
+                },
+                "virtualMachineProfile": {
+                    "storageProfile": {
+                        "osDisk": {
+                            "managedDisk": {
+                                "storageAccountType": "Standard_LRS"
+                            },
+                            "caching": "ReadWrite",
+                            "createOption": "FromImage",
+                            "diskSizeGB": 60
+                        },
+                        "dataDisks": [],
+                        "imageReference": {
+                            "publisher": "[variables('imagePublisher')]",
+                            "offer": "[variables('imageOffer')]",
+                            "sku": "[parameters('vmSku')]",
+                            "version": "[parameters('imageVersion')]"
+
+                        }
+                    },
+                    "osProfile": {
+                        "computerNamePrefix": "[concat('pavmhub', parameters('randomString'))]",
+                        "adminUsername": "[parameters('adminUsername')]",
+                        "adminPassword": "[parameters('adminPassword')]",
+                        "customData": "[base64(parameters('customDataField'))]"
+                    },
+                    "networkProfile": {
+                        "healthProbe": {
+                            "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', parameters('fwIlbName'), '/probes/fw-mgmt-health-probe')]"
+                        },
+                        "networkInterfaceConfigurations": [
+                        {
+                            "name": "[variables('nicNameMgmt')]",
+                            "properties": {
+                                "primary": "true",
+                                "ipConfigurations": [
+                                {
+                                    "name": "[variables('ipConfigNamemgmt')]",
+                                    "properties": {
+                                        "subnet": {
+                                            "id" : "[if(equals(parameters('deployIntoExistingVnet'), 'No'), variables('tempMgmtSubnetID'), parameters('subnetIDMgmt'))]"
+                                        },
+                                        "loadBalancerBackendAddressPools": [
+                                            {
+                                                "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', parameters('fwIlbName'), '/backendAddressPools/fw-mgmt-backend-pool')]"
+                                            }
+                                        ]
+                                    }
+                                }]
+                            }
+                        },
+                        {
+                            "name": "[variables('nicNameDataIntfc')]",
+                            "properties": {
+                                "primary": "false",
+                                "enableAcceleratedNetworking": "true",
+                                "enableIPForwarding": "true",
+                                "ipConfigurations": [
+                                {
+                                    "name": "[variables('ipConfigNameData')]",
+                                    "properties": {
+                                        "subnet": {
+                                            "id" : "[if(equals(parameters('deployIntoExistingVnet'), 'No'), variables('tempDataSubnetID'), parameters('subnetIDData'))]"
+                                        },
+                                        "loadBalancerBackendAddressPools": [
+                                            {
+                                                "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', parameters('fwIlbName'), '/backendAddressPools/fw-data-backend-pool')]"
+                                            }
+                                        ]
+                                    }
+                                }]
+                            }
+                        }]
+                    }
+                }
+            }
+        },
+        {
+            "type": "microsoft.insights/autoscalesettings",
+            "name": "[variables('autoscaleName')]",
+            "apiVersion": "2014-04-01",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "PanoramaManaged": "Yes"
+            },
+            "scale": null,
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachineScaleSets', parameters('vmssName'))]"
+            ],
+            "properties": {
+                "profiles": [
+                    {
+                        "name": "Auto created scale condition",
+                        "capacity": {
+                            "default": "[parameters('vmScaleSetMinCount')]", 
+                            "maximum": "[parameters('vmScaleSetMaxCount')]", 
+                            "minimum": "[parameters('vmScaleSetMinCount')]"
+                        },
+                        "rules": [
+                            {
+                                "metricTrigger": {
+                                    "metricName": "[variables('scaleMetricMap')[parameters('autoScaleMetric')].metricName]", 
+                                    "metricNamespace": "",
+                                    "metricResourceUri": "[variables('scaleMetricMap')[parameters('autoScaleMetric')].metricResourceUri]",
+                                    "timeGrain": "PT1M",
+                                    "statistic": "Average",
+                                    "timeWindow": "PT5M",
+                                    "timeAggregation": "Average",
+                                    "operator": "GreaterThan",
+                                    "threshold": "[parameters('scaleOutThreshold')]"
+                                },
+                                "scaleAction": {
+                                    "direction": "Increase",
+                                    "type": "ChangeCount",
+                                    "value": "1",
+                                    "cooldown": "PT5M"
+                                }
+                            },
+                            {
+                                "metricTrigger": {
+                                    "metricName": "[variables('scaleMetricMap')[parameters('autoScaleMetric')].metricName]",
+                                    "metricNamespace": "",
+                                    "metricResourceUri": "[variables('scaleMetricMap')[parameters('autoScaleMetric')].metricResourceUri]",
+                                    "operator": "LessThan",
+                                    "statistic": "Average",
+                                    "threshold": "[parameters('scaleInThreshold')]",
+                                    "timeAggregation": "Average",
+                                    "timeGrain": "PT1M",
+                                    "timeWindow": "PT10M"
+                                },
+                                "scaleAction": {
+                                    "direction": "Decrease",
+                                    "type": "ChangeCount",
+                                    "value": "1",
+                                    "cooldown": "PT5M"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "notifications": [],
+            "enabled": true,
+            "targetResourceUri": "[resourceId('Microsoft.Compute/virtualMachineScaleSets', parameters('vmssName'))]"
+        }
+    }],
+    "outputs": {
+    }
+}

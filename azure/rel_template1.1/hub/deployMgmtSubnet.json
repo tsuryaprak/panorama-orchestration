@@ -1,0 +1,51 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "virtualNetworkName": {
+            "type": "string",
+            "defaultValue": "inbound-fw-vnet",
+            "metadata": {
+                "description": "Virtual Network Name of the VM-Series firewall VM Scale Set."
+            }
+        },
+        "mgmtSubnetName": {
+            "type": "string",
+            "defaultValue": "Mgmt-Subnet",
+            "metadata": {
+                "description": "Subnet for Management"
+            }
+        },
+        "mgmtSubnetPrefix": {
+            "type": "string",
+            "defaultValue": "None",
+            "metadata": {
+                "description": "Mgmt subnet CIDR"
+            }
+        },
+        "natGatewayName": {
+            "type": "string",
+            "defaultValue": "None",
+            "metadata": {
+                "description": "NAT Gateway name to attach to the subnet"
+            }
+        }
+    },
+    "variables": {
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('virtualNetworkName'), '/', parameters('mgmtSubnetName'))]",
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2019-11-01",
+            "properties": {
+                "addressPrefix": "[parameters('mgmtSubnetPrefix')]",
+                "natGateway": {
+                    "id": "[resourceId('Microsoft.Network/natGateways', parameters('natGatewayName'))]"
+                }
+            }
+        }
+    ],
+    "outputs": {
+    }
+}
