@@ -615,6 +615,12 @@
                     },
                     "customImageId" : {
                         "value" : "[parameters('customImageId')]"
+                    },
+                    "maxUnhealthyInstancePercent" : {
+                        "value" : "[parameters('maxUnhealthyInstancePercent')]"
+                    },
+                    "maxUnhealthyUpgradedInstancePercent" : {
+                        "value" : "[parameters('maxUnhealthyUpgradedInstancePercent')]"
                     }
                 }
             }
